@@ -222,7 +222,7 @@ graph TD
     CreateParamsFromConfig --> Connect;
 
     CheckServerName -- No (server_script_path specified) --> ResolvePath["abs_script_path = Path(server_script_path).resolve()"];
-    ResolvePath --> ScriptExists{Path(abs_script_path).exists()?};
+    ResolvePath --> ScriptExists{"Path(abs_script_path).exists()?"};
     ScriptExists -- No --> ErrorScriptNotFound["Raise FileNotFoundError"];
     ScriptExists -- Yes --> CheckExtension{abs_script_path ends with '.py' or '.js' ?};
     CheckExtension -- No --> ErrorInvalidExtension["Raise ValueError 'Server script must be .py or .js'"];
@@ -288,46 +288,44 @@ sequenceDiagram
         alt No candidates in response
             MCPClient_instance->>MCPClient_instance: Log warning, prepare error message
             MCPClient_instance-->>User: "AI model returned no response candidates."
-            break
-        end
+        else Candidates available
+            Note over MCPClient_instance: model_response_content = response.candidates[0].content
+            Note over MCPClient_instance: conversation_history.append(model_response_content) (adds LLM's turn)
 
-        Note over MCPClient_instance: model_response_content = response.candidates[0].content
-        Note over MCPClient_instance: conversation_history.append(model_response_content) (adds LLM's turn)
-
-        opt Text part in model_response_content.parts
-            MCPClient_instance->>MCPClient_instance: Extract part.text
-            MCPClient_instance->>User: (Prints intermediate text if substantive)
-            Note over MCPClient_instance: final_response_text_parts.append(part.text)
-        end
-
-        alt Function call part in model_response_content.parts
-            MCPClient_instance->>MCPClient_instance: Extract function_call (name, args)
-            Note over MCPClient_instance: tool_name="get_weather_forecast", tool_args={"location": "London"}
-            MCPClient_instance->>User: "[LLM wants to call tool 'get_weather_forecast'...]"
-            
-            MCPClient_instance->>MCP_Session: call_tool(tool_name, tool_args_dict)
-            MCP_Session->>MCP_Server_Process: Execute "get_weather_forecast" with {"location": "London"}
-            MCP_Server_Process-->>MCP_Session: tool_result.content (e.g., {"forecast": "Sunny, 20C"})
-            MCP_Session-->>MCPClient_instance: mcp_tool_result
-            
-            MCPClient_instance->>User: "[Tool 'get_weather_forecast' executed by MCP...]"
-            MCPClient_instance->>MCPClient_instance: Prepare tool_result_content_for_llm (e.g., {"forecast": "Sunny, 20C"})
-            
-            MCPClient_instance->>GenAI_SDK_aio: types.Part.from_function_response(name=tool_name, response=tool_result_content_for_llm)
-            GenAI_SDK_aio-->>MCPClient_instance: tool_response_part_for_history
-            Note over MCPClient_instance: conversation_history.append(Content(parts=[tool_response_part_for_history], role="user"))
-            continue loop
-        else No function call
-            MCPClient_instance->>MCPClient_instance: Log "No function call... Assuming final textual response."
-            opt No text parts collected and response.text exists
-                 MCPClient_instance->>MCPClient_instance: final_response_text_parts.append(response.text)
+            opt Text part in model_response_content.parts
+                MCPClient_instance->>MCPClient_instance: Extract part.text
+                MCPClient_instance->>User: (Prints intermediate text if substantive)
+                Note over MCPClient_instance: final_response_text_parts.append(part.text)
             end
-            break
+
+            alt Function call part in model_response_content.parts
+                MCPClient_instance->>MCPClient_instance: Extract function_call (name, args)
+                Note over MCPClient_instance: tool_name="get_weather_forecast", tool_args={"location": "London"}
+                MCPClient_instance->>User: "[LLM wants to call tool 'get_weather_forecast'...]"
+                
+                MCPClient_instance->>MCP_Session: call_tool(tool_name, tool_args_dict)
+                MCP_Session->>MCP_Server_Process: Execute "get_weather_forecast" with {"location": "London"}
+                MCP_Server_Process-->>MCP_Session: tool_result.content (e.g., {"forecast": "Sunny, 20C"})
+                MCP_Session-->>MCPClient_instance: mcp_tool_result
+                
+                MCPClient_instance->>User: "[Tool 'get_weather_forecast' executed by MCP...]"
+                MCPClient_instance->>MCPClient_instance: Prepare tool_result_content_for_llm (e.g., {"forecast": "Sunny, 20C"})
+                
+                MCPClient_instance->>GenAI_SDK_aio: types.Part.from_function_response(name=tool_name, response=tool_result_content_for_llm)
+                GenAI_SDK_aio-->>MCPClient_instance: tool_response_part_for_history
+                Note over MCPClient_instance: conversation_history.append(Content(parts=[tool_response_part_for_history], role="user"))
+                Note over MCPClient_instance: Continue to next loop iteration
+            else No function call
+                MCPClient_instance->>MCPClient_instance: Log "No function call... Assuming final textual response."
+                opt No text parts collected and response.text exists
+                    MCPClient_instance->>MCPClient_instance: final_response_text_parts.append(response.text)
+                end
+            end
         end
     end
     
     opt Max turns reached and no text gathered
-         MCPClient_instance->>MCPClient_instance: final_response_text_parts.append("[Max interaction turns reached...]")
+        MCPClient_instance->>MCPClient_instance: final_response_text_parts.append("[Max interaction turns reached...]")
     end
 
     MCPClient_instance->>MCPClient_instance: final_response = "".join(final_response_text_parts).strip()

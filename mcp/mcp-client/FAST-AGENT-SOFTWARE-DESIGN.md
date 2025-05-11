@@ -233,6 +233,39 @@ sequenceDiagram
     end
 ```
 
+## Simplified:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant FastAgentSystem["FastAgent System<br/>(Decorator, FastAgent, MCPApp, Context)"]
+    participant AgentFactory["Agent Factory<br/>(AgentFactoryModule, ModelFactory)"]
+    participant AgentRuntime["Agent Runtime<br/>(AgentClasses, LLMClasses, MCPAggregator, MCPConnManager, ServerRegistry)"]
+
+    User->>FastAgentSystem: Defines agent `my_agent` (e.g., `@fast.agent("my_agent", ...)`)
+    Note right of FastAgentSystem: Stores `my_agent` config in `FastAgent.agents`
+
+    User->>FastAgentSystem: Calls `async with fast.run() as app_runtime:`
+    FastAgentSystem->>FastAgentSystem: Initializes `MCPApp` and `Context`
+    Note right of FastAgentSystem: - Creates `MCPApp` instance<br/>- Calls `await app.initialize()`<br/>- Loads `Settings` (YAML, secrets, env)<br/>- Configures Logger, OTEL (optional)<br/>- Creates `Executor` and `ServerRegistry`<br/>- Returns initialized `Context`
+
+    FastAgentSystem->>AgentFactory: Creates agents in dependency order
+    Note right of AgentFactory: - Determines initialization order based on dependencies<br/>- For each agent:<br/>  - Calls `create_agents_by_type(...)`<br/>  - Gets `llm_factory_function` from `ModelFactory`<br/>  - Instantiates `Agent` (e.g., `my_agent_instance`)
+
+    AgentFactory->>AgentRuntime: Initializes agent instances
+    Note right of AgentRuntime: - For each agent:<br/>  - Attaches LLM (`AugmentedLLM` via `llm_factory_function`)<br/>  - Calls `await my_agent_instance.initialize()`<br/>  - Loads servers via `MCPAggregator` (uses `ServerRegistry`)<br/>  - If persistent connections:<br/>    - Uses `MCPConnManager` to get `ServerConnection`<br/>    - Launches server process if needed<br/>  - Fetches tools/prompts from servers<br/>  - Indexes tools/prompts
+
+    AgentFactory-->>FastAgentSystem: Returns `active_agents` dictionary
+    FastAgentSystem->>AgentRuntime: Creates `AgentApp(active_agents)` runtime wrapper
+    FastAgentSystem-->>User: Yields `app_runtime` (AgentApp instance)
+
+    User->>AgentRuntime: Interacts with agents (e.g., `app_runtime.my_agent.send()`)
+
+    Note right of User: When `fast.run()` context exits
+    FastAgentSystem->>AgentRuntime: Cleans up
+    Note right of AgentRuntime: - Calls `await app.cleanup()`<br/>- Shuts down logger via `await cleanup_context()`<br/>- For each agent:<br/>  - Calls `await agent.shutdown()`<br/>  - If persistent connections:<br/>    - Disconnects all via `MCPConnManager`
+```
+
 **Explanation (Level 3):**
 
 1.  **Agent Definition**: The user defines an agent (e.g., `my_agent`) using a decorator like `@fast.agent`. The decorator captures the agent's configuration (name, instruction, model, servers it uses) and stores it in the `FastAgent` instance's internal registry (`FastAgent.agents`).

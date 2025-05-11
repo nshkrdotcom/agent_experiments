@@ -636,37 +636,37 @@ graph TD
         Server_ToolImpl["Actual Tool Implementation (e.g., @mcp.tool decorated function)"]
     end
     
-    A_AugmentedLLM -- "1. `await self.aggregator.call_tool(tool_name, args)`" --> Agg_MCPAggregator
+    A_AugmentedLLM -- "1 await self.aggregator.call_tool(tool_name, args)" --> Agg_MCPAggregator
     
-    Agg_MCPAggregator -- "2. `_parse_resource_name(tool_name)` (Uses Agg_ToolMap, Agg_ServerToToolMap)" --> Agg_MCPAggregator
-    Agg_MCPAggregator -- "3. Resolves to `server_name` & `local_tool_name`" --> Agg_MCPAggregator
+    Agg_MCPAggregator -- "2 _parse_resource_name(tool_name) (Uses Agg_ToolMap, Agg_ServerToToolMap)" --> Agg_MCPAggregator
+    Agg_MCPAggregator -- "3 Resolves to server_name & local_tool_name" --> Agg_MCPAggregator
         
     %% Connection type decision point
-    Agg_MCPAggregator -- "4. Check connection_persistence" --> ConnectionDecision{"connection_persistence?"}
+    Agg_MCPAggregator -- "4 Check connection_persistence" --> ConnectionDecision{"connection_persistence?"}
     
     %% Persistent Connection Path
     ConnectionDecision -- "True" --> CM_ConnectionManager
-    CM_ConnectionManager -- "5a. Gets/Launches server if needed" --> SR_ServerRegistry
+    CM_ConnectionManager -- "5a Gets/Launches server if needed" --> SR_ServerRegistry
     SR_ServerRegistry -- "Provides MCPServerSettings" --> CM_ConnectionManager
-    CM_ConnectionManager -- "6a. Manages transport & creates ServerConnection" --> CM_ConnectionManager
-    CM_ConnectionManager -- "7a. Returns ServerConnection (with ClientSession)" --> Agg_MCPAggregator
+    CM_ConnectionManager -- "6a Manages transport & creates ServerConnection" --> CM_ConnectionManager
+    CM_ConnectionManager -- "7a Returns ServerConnection (with ClientSession)" --> Agg_MCPAggregator
     
     %% Non-Persistent Connection Path
     ConnectionDecision -- "False" --> GC_GenClient
-    GC_GenClient -- "5b. Uses" --> SR_ServerRegistry
+    GC_GenClient -- "5b Uses" --> SR_ServerRegistry
     SR_ServerRegistry -- "Provides MCPServerSettings" --> GC_GenClient
-    GC_GenClient -- "6b. Manages transport & creates ClientSession" --> GC_GenClient
-    GC_GenClient -- "7b. Yields ClientSession" --> Agg_MCPAggregator
+    GC_GenClient -- "6b Manages transport & creates ClientSession" --> GC_GenClient
+    GC_GenClient -- "7b Yields ClientSession" --> Agg_MCPAggregator
     
     %% Common path after session acquisition
-    Agg_MCPAggregator -- "8. client_session.call_tool(local_tool_name, args)" --> Server_TransportHandler
-    Server_TransportHandler -- "9. Forwards MCP Request" --> Server_ClientSessionHandler
-    Server_ClientSessionHandler -- "10. Invokes" --> Server_ToolImpl
-    Server_ToolImpl -- "11. Executes tool logic" --> Server_ToolImpl
-    Server_ToolImpl -- "12. Returns result" --> Server_ClientSessionHandler
-    Server_ClientSessionHandler -- "13. Sends MCP Response (CallToolResult)" --> Server_TransportHandler
-    Server_TransportHandler -- "14. Transmits MCP Response" --> Agg_MCPAggregator
-    Agg_MCPAggregator -- "15. Returns CallToolResult" --> A_AugmentedLLM
+    Agg_MCPAggregator -- "8 client_session.call_tool(local_tool_name, args)" --> Server_TransportHandler
+    Server_TransportHandler -- "9 Forwards MCP Request" --> Server_ClientSessionHandler
+    Server_ClientSessionHandler -- "10 Invokes" --> Server_ToolImpl
+    Server_ToolImpl -- "11 Executes tool logic" --> Server_ToolImpl
+    Server_ToolImpl -- "12 Returns result" --> Server_ClientSessionHandler
+    Server_ClientSessionHandler -- "13 Sends MCP Response (CallToolResult)" --> Server_TransportHandler
+    Server_TransportHandler -- "14 Transmits MCP Response" --> Agg_MCPAggregator
+    Agg_MCPAggregator -- "15 Returns CallToolResult" --> A_AugmentedLLM
 
     %% Notes
     classDef note fill:#ffffcc,stroke:#999,stroke-width:1px,color:#000;

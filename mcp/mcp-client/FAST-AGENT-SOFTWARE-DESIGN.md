@@ -715,7 +715,7 @@ graph TD
         Env_Vars["Environment Variables"]
     end
 
-    subgraph ConfigLoading ["Configuration Loading (`config.py`)"]
+    subgraph ConfigLoading ["Configuration&nbsp;Loading&nbsp;(config.py)"]
         direction TB
         GetSettings["get_settings(config_path)"]
         SettingsModelDef["Settings (Pydantic Model Definition)"]
@@ -723,7 +723,7 @@ graph TD
         DeepMerge["Deep Merge Logic (Secrets over Config)"]
     end
 
-    subgraph AppContextSetup ["Application Context Setup (`context.py`)"]
+    subgraph AppContextSetup ["Application&nbsp;Context&nbsp;Setup&nbsp;(context.py)"]
         direction TB
         InitializeContext["initialize_context()"]
         ContextInstance["Context Object (Holds final Settings)"]
@@ -759,10 +759,10 @@ graph TD
     Core_MCPApp -- "Provides Context to" --> Core_MCPAggregator
     Core_MCPApp -- "Provides Context to" --> Core_Logger
     
-    Core_ServerRegistry -- "Reads `mcp.servers` from Settings" --> ContextInstance
-    Core_LLMProviders -- "Reads provider keys (e.g., `openai.api_key`) from Settings" --> ContextInstance
+    Core_ServerRegistry -- "Reads mcp.servers from Settings" --> ContextInstance
+    Core_LLMProviders -- "Reads provider keys (e.g., openai.api_key) from Settings" --> ContextInstance
     Core_MCPAggregator -- "Uses ServerRegistry (which uses Settings)" --> Core_ServerRegistry
-    Core_Logger -- "Reads `logger` & `otel` sections from Settings" --> ContextInstance
+    Core_Logger -- "Reads logger & otel sections from Settings" --> ContextInstance
 
     classDef source fill:#f9c,stroke:#333,stroke-width:2px,color:#000;
     classDef loading fill:#fec,stroke:#333,stroke-width:2px,color:#000;

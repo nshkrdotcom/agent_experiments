@@ -238,32 +238,45 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant User
-    participant FastAgentSystem["FastAgent System<br/>(Decorator, FastAgent, MCPApp, Context)"]
-    participant AgentFactory["Agent Factory<br/>(AgentFactoryModule, ModelFactory)"]
-    participant AgentRuntime["Agent Runtime<br/>(AgentClasses, LLMClasses, MCPAggregator, MCPConnManager, ServerRegistry)"]
-
-    User->>FastAgentSystem: Defines agent `my_agent` (e.g., `@fast.agent("my_agent", ...)`)
-    Note right of FastAgentSystem: Stores `my_agent` config in `FastAgent.agents`
-
-    User->>FastAgentSystem: Calls `async with fast.run() as app_runtime:`
-    FastAgentSystem->>FastAgentSystem: Initializes `MCPApp` and `Context`
-    Note right of FastAgentSystem: - Creates `MCPApp` instance<br/>- Calls `await app.initialize()`<br/>- Loads `Settings` (YAML, secrets, env)<br/>- Configures Logger, OTEL (optional)<br/>- Creates `Executor` and `ServerRegistry`<br/>- Returns initialized `Context`
-
-    FastAgentSystem->>AgentFactory: Creates agents in dependency order
-    Note right of AgentFactory: - Determines initialization order based on dependencies<br/>- For each agent:<br/>  - Calls `create_agents_by_type(...)`<br/>  - Gets `llm_factory_function` from `ModelFactory`<br/>  - Instantiates `Agent` (e.g., `my_agent_instance`)
-
-    AgentFactory->>AgentRuntime: Initializes agent instances
-    Note right of AgentRuntime: - For each agent:<br/>  - Attaches LLM (`AugmentedLLM` via `llm_factory_function`)<br/>  - Calls `await my_agent_instance.initialize()`<br/>  - Loads servers via `MCPAggregator` (uses `ServerRegistry`)<br/>  - If persistent connections:<br/>    - Uses `MCPConnManager` to get `ServerConnection`<br/>    - Launches server process if needed<br/>  - Fetches tools/prompts from servers<br/>  - Indexes tools/prompts
-
-    AgentFactory-->>FastAgentSystem: Returns `active_agents` dictionary
-    FastAgentSystem->>AgentRuntime: Creates `AgentApp(active_agents)` runtime wrapper
-    FastAgentSystem-->>User: Yields `app_runtime` (AgentApp instance)
-
-    User->>AgentRuntime: Interacts with agents (e.g., `app_runtime.my_agent.send()`)
-
-    Note right of User: When `fast.run()` context exits
-    FastAgentSystem->>AgentRuntime: Cleans up
-    Note right of AgentRuntime: - Calls `await app.cleanup()`<br/>- Shuts down logger via `await cleanup_context()`<br/>- For each agent:<br/>  - Calls `await agent.shutdown()`<br/>  - If persistent connections:<br/>    - Disconnects all via `MCPConnManager`
+    participant FastAPI as Fast Agent Framework
+    participant AppCore as App Core Components
+    participant AgentLayer as Agent Components
+    participant LLMLayer as LLM Components
+    participant MCPLayer as MCP Connectivity
+    
+    User->>FastAPI: Define agent with @fast.agent decorator
+    Note right of FastAPI: Stores agent config in FastAgent.agents dictionary
+    
+    User->>FastAPI: async with fast.run() as app_runtime:
+    
+    FastAPI->>AppCore: Initialize application
+    Note right of AppCore: - Creates MCPApp instance<br>- Loads Settings (YAML, secrets, env)<br>- Configures Logger, OTEL<br>- Creates Executor<br>- Creates ServerRegistry<br>- Returns Context object
+    
+    FastAPI->>AgentLayer: Create agents in dependency order
+    Note right of AgentLayer: - Determines initialization order<br>- For each agent:<br>  * Get model factory<br>  * Instantiate Agent class<br>  * Return agent instance
+    
+    AgentLayer->>LLMLayer: Attach LLM to agent
+    Note right of LLMLayer: - Creates AugmentedLLM instance<br>- Returns LLM instance to agent
+    
+    AgentLayer->>MCPLayer: Initialize MCP connections
+    Note right of MCPLayer: - Loads servers via MCPAggregator<br>- For persistent connections:<br>  * Uses ConnectionManager<br>  * Launches server processes<br>  * Creates ServerConnection with ClientSession<br>- Fetches tools/prompts from servers<br>- Indexes all available tools
+    
+    FastAPI-->>User: Returns app_runtime (AgentApp instance)
+    
+    User->>FastAPI: Interact with agents (app_runtime.my_agent.send())
+    
+    rect rgb(240, 240, 250)
+        Note over User,MCPLayer: Context Manager Exit Flow
+        
+        User->>FastAPI: Exit async with block
+        FastAPI->>AppCore: Cleanup application
+        
+        FastAPI->>AgentLayer: Shutdown all agents
+        AgentLayer->>MCPLayer: Close MCP connections
+        Note right of MCPLayer: For persistent connections:<br>Disconnect all servers
+        
+        AppCore->>AppCore: Cleanup context (shutdown logger)
+    end
 ```
 
 **Explanation (Level 3):**

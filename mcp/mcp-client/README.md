@@ -713,3 +713,196 @@ flowchart LR
     MCP <-->|Command execution| Tool2
     MCP <-->|Command execution| Tool3
 ```
+
+# Sample usage (using Context7 as an example):
+
+````bash
+(mcp-client) home@Desktop:~/p/g/n/agent_experiments/mcp/mcp-client$ python cli.py multi_tool_agent
+Initializing workflow: multi_tool_agent...
+Processing request of type ListToolsRequest
+Processing request of type ListToolsRequest
+Context7 Documentation MCP Server running on stdio
+Tools ready: get_alerts, get_forecast, resolve-library-id, get-library-docs.
+
+Chatting with workflow: 'multi_tool_agent' (LLM: gemini-2.5-flash-preview-04-17)
+Available tools: get_alerts, get_forecast, resolve-library-id, get-library-docs
+Type your queries or 'quit' to exit.
+
+Query: show me how to use the phoenix framework project setup. use context7
+Processing...
+LLM: Okay, I can help you with that. I will use the Context7 tools to find documentation on setting up a Phoenix framework project.
+
+First, I need to resolve the library ID for "phoenix framework".
+LLM wants to call: resolve-library-id({"libraryName": "phoenix framework"})
+Processing request of type ListToolsRequest
+Tool resolve-library-id executed. Result snippet: [TextContent(type='text', text='Available Libraries (top matches):\n\nEach result includes:\n- Library ID: Context7-compatible identifier (format: /or...
+LLM: Okay, I have the results for "phoenix framework". The most relevant library appears to be "Phoenix" with the ID `/phoenixframework/phoenix`, which has a description "Peace of mind from prototype to production", a high number of code snippets, and the most stars among the Phoenix-related results.
+
+Now I will fetch the documentation for this library focusing on "project setup".
+LLM wants to call: get-library-docs({"context7CompatibleLibraryID": "/phoenixframework/phoenix", "topic": "project setup"})
+Processing request of type ListToolsRequest
+Tool get-library-docs executed. Result snippet: [TextContent(type='text', text='TITLE: Install and Setup Dependencies with Mix (Elixir)\nDESCRIPTION: This command runs the necessary tasks to install...
+LLM: Based on the documentation retrieved, here's a summary of how to set up a Phoenix framework project:
+
+**1. Install the Phoenix Application Generator:**
+
+You'll need the `phx_new` archive, which is the generator for new Phoenix projects. Install it using Mix and Hex:
+LLM: ```bash
+$ mix archive.install hex phx_new
+```
+LLM: **2. Create a New Phoenix Project:**
+
+Use the `mix phx.new` command followed by your desired project name. For example, to create a project named "hello":
+LLM: ```bash
+$ mix phx.new hello
+```
+LLM: When prompted to fetch and install dependencies, you can typically answer `Y`.
+
+**3. Navigate into the Project Directory:**
+
+Change into the newly created project directory:
+LLM: ```bash
+$ cd hello
+```
+LLM: **4. Fetch and Install Dependencies (if you skipped this step during creation):**
+
+If you chose not to fetch dependencies during project creation, you can do so manually:
+LLM: ```bash
+$ mix deps.get
+```
+LLM: You may also need to install JavaScript dependencies if your project uses them:
+LLM: ```bash
+$ cd assets
+$ npm install
+```
+LLM: **5. Create the Database:**
+
+Configure your database in `config/dev.exs` and then run the Ecto mix task to create the database:
+LLM: ```bash
+$ mix ecto.create
+```
+LLM: If you are using a different database like MySQL, you can specify it when creating the project:
+LLM: ```bash
+$ mix phx.new hello_phoenix --database mysql
+```
+LLM: And then create the database:
+LLM: ```bash
+$ mix ecto.create
+```
+LLM: **6. Run Database Migrations (if you have any):**
+
+If your project has database migrations, apply them:
+LLM: ```bash
+$ mix ecto.migrate
+```
+LLM: **7. Start the Phoenix Server:**
+
+You can start your Phoenix application using:
+LLM: ```bash
+$ mix phx.server
+```
+LLM: Or you can run it inside an interactive Elixir shell (IEx) with:
+LLM: ```bash
+$ iex -S mix phx.server
+```
+LLM: **Additional Notes:**
+
+*   The `mix phx.new` command has various flags (`--no-assets`, `--no-ecto`, etc.) that you can use to exclude components if you're building a specific type of application, like an API-only project. You can see the options with `mix help phx.new`.
+*   The default project structure includes directories for build artifacts, assets, configuration, dependencies, application code, resources, and tests.
+
+This covers the basic steps for setting up a Phoenix framework project.
+
+Based on the documentation retrieved, here's a summary of how to set up a Phoenix framework project:
+
+**1. Install the Phoenix Application Generator:**
+
+You'll need the `phx_new` archive, which is the generator for new Phoenix projects. Install it using Mix and Hex:
+
+```bash
+$ mix archive.install hex phx_new
+```
+
+**2. Create a New Phoenix Project:**
+
+Use the `mix phx.new` command followed by your desired project name. For example, to create a project named "hello":
+
+```bash
+$ mix phx.new hello
+```
+
+When prompted to fetch and install dependencies, you can typically answer `Y`.
+
+**3. Navigate into the Project Directory:**
+
+Change into the newly created project directory:
+
+```bash
+$ cd hello
+```
+
+**4. Fetch and Install Dependencies (if you skipped this step during creation):**
+
+If you chose not to fetch dependencies during project creation, you can do so manually:
+
+```bash
+$ mix deps.get
+```
+
+You may also need to install JavaScript dependencies if your project uses them:
+
+```bash
+$ cd assets
+$ npm install
+```
+
+**5. Create the Database:**
+
+Configure your database in `config/dev.exs` and then run the Ecto mix task to create the database:
+
+```bash
+$ mix ecto.create
+```
+
+If you are using a different database like MySQL, you can specify it when creating the project:
+
+```bash
+$ mix phx.new hello_phoenix --database mysql
+```
+
+And then create the database:
+
+```bash
+$ mix ecto.create
+```
+
+**6. Run Database Migrations (if you have any):**
+
+If your project has database migrations, apply them:
+
+```bash
+$ mix ecto.migrate
+```
+
+**7. Start the Phoenix Server:**
+
+You can start your Phoenix application using:
+
+```bash
+$ mix phx.server
+```
+
+Or you can run it inside an interactive Elixir shell (IEx) with:
+
+```bash
+$ iex -S mix phx.server
+```
+
+**Additional Notes:**
+
+*   The `mix phx.new` command has various flags (`--no-assets`, `--no-ecto`, etc.) that you can use to exclude components if you're building a specific type of application, like an API-only project. You can see the options with `mix help phx.new`.
+*   The default project structure includes directories for build artifacts, assets, configuration, dependencies, application code, resources, and tests.
+
+This covers the basic steps for setting up a Phoenix framework project.
+
+Query:
+````

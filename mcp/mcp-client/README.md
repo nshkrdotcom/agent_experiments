@@ -1,309 +1,652 @@
-# MCP Client (client-g6.py)
+# Composable MCP Client with Workflows
 
-Below is a comprehensive `README.md` for your `client-g6.py` MCP client, which connects to MCP servers like the provided `weather.py` server using a configuration-driven approach. The README includes:
+This project demonstrates a modular Python client for interacting with MCP (Model Context Protocol) servers. It uses a configuration-driven approach to define workflows that leverage an LLM (Google Gemini via `google-generativeai`) and various MCP tools.
 
-* An overview of the client and its purpose.
-* Use cases for interacting with MCP servers.
-* Detailed commands for running the client.
-* A thorough explanation of the `.mcp.json` configuration file structure, including required and optional fields.
-* Limitations of the current implementation to clarify compatible server types and potential constraints.
-* Installation and setup instructions.
+## Features
 
-This README is designed to be user-friendly, technically precise, and informative for developers looking to use or extend the client.
+*   **Modular Design:** Code is split into logical components for configuration, services, workflow engine, CLI, and logging.
+*   **Configuration-Driven:**
+    *   `mcp_servers.json`: Define connection details for MCP servers (e.g., weather, Context7).
+    *   `workflows.json`: Define different "personalities" or task-specific setups for the LLM, specifying which model to use, which MCP servers (tools) are available, an initial prompt, and conversation turn limits.
+*   **MCP Integration:** Connects to and utilizes tools exposed by MCP servers.
+*   **LLM Integration:** Uses Google Gemini for natural language understanding and function calling.
+*   **Flexible Logging:**
+    *   Configurable console log verbosity (`quiet`, `user`, `normal`, `verbose`).
+    *   Detailed file logging (`app_client.log`).
+    *   Control over third-party library log noise.
+*   **Asynchronous Operations:** Built with `asyncio` for efficient I/O.
 
-## Overview
+## Project Structure
 
-`client-g6.py` is a Python-based Model Context Protocol (MCP) client that connects to MCP servers, such as the provided weather server (`weather.py`), to execute tools and process queries using the Google Generative AI (GenAI) SDK. The client supports a configuration-driven approach, allowing users to define server connections in a `.mcp.json` file or specify server scripts directly via the command line. It is designed for flexibility, enabling interaction with various MCP servers that provide tools for tasks like fetching weather forecasts, alerts, or documentation.
+```bash
+.
+├── app_logger.py       # Logging abstraction and setup
+├── cli.py              # Command-line interface and main entry point
+├── config.py           # Handles loading mcp_servers.json and workflows.json
+├── engine.py           # Core workflow orchestration logic
+├── services.py         # Classes for interacting with MCP servers and LLM
+├── mcp_servers.json    # Example MCP server configurations
+├── workflows.json      # Example workflow definitions
+└── app_client.log      # Log file (generated on run)
+```
 
-### Features
+## Prerequisites
 
-* **Configuration-Driven:** Load server configurations from a `.mcp.json` file for easy management of multiple MCP servers.
-* **CLI Flexibility:** Connect to servers via configured server names or direct script paths.
-* **GenAI Integration:** Uses the Google GenAI SDK to process queries and call MCP tools intelligently.
-* **Robust Logging:** Detailed debug logs (`client_debug.log`) for troubleshooting.
-* **Extensible Design:** Modular structure supports adding new transport types or server configurations.
+*   Python 3.9+
+*   Node.js (if using MCP servers like Context7 that are Node-based, e.g., via `npx`)
+*   An environment variable `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) set with your Google AI Studio API key.
 
-## Use Cases
+## Setup
 
-* **Weather Information Retrieval:**
-    * Query the weather server for forecasts or alerts, e.g., "What's the forecast for New York?" or "Are there any weather alerts in California?"
-    * Tools: `get_forecast (latitude, longitude)` and `get_alerts (state code)`.
-* **Documentation Fetching:**
-    * Connect to servers like Context7 MCP to retrieve up-to-date library documentation, e.g., "Get documentation for Next.js routing."
-* **Custom MCP Servers:**
-    * Interact with any MCP server that exposes tools via the `stdio` transport protocol, provided the tools have compatible input schemas.
-* **Development and Testing:**
-    * Test and debug custom MCP servers by connecting and invoking their tools interactively.
-
-## Installation
-
-### Prerequisites
-
-* **Python:** Version 3.8 or higher.
-* **Node.js (optional):** Required for JavaScript-based MCP servers (e.g., Context7).
-* **Google API Key:** A valid `GOOGLE_API_KEY` or `GEMINI_API_KEY` for the Google GenAI SDK.
-
-### Setup
-
-1.  **Clone the Repository (if applicable):**
+1.  **Clone the repository (or create the files):**
     ```bash
-    git clone <repository-url>
-    cd mcp-client
+    # If you have the files already, skip this
+    # git clone <repository_url>
+    # cd <repository_name>
     ```
-2.  **Create a Virtual Environment:**
+
+2.  **Create Python Virtual Environment (recommended):**
     ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
+
 3.  **Install Dependencies:**
     ```bash
-    pip install mcp google-generativeai httpx python-dotenv
+    pip install python-dotenv mcp-protocols google-generativeai
     ```
-4.  **Set Up Environment Variables:**
-    Create a `.env` file in the project directory with your Google API key:
-    ```bash
-    echo "GOOGLE_API_KEY=your_api_key_here" > .env
+
+4.  **Configure API Key:**
+    Create a `.env` file in the project root:
+    ```env
+    GOOGLE_API_KEY="YOUR_API_KEY_HERE"
     ```
-5.  **Prepare the Configuration File:**
-    Create a `.mcp.json` file in the project directory (`mcp-client/.mcp.json`) or in `~/.mcp/mcp.json`. See Configuration File Structure (#configuration-file-structure) for details.
+    Alternatively, set the environment variable directly in your shell.
+
+5.  **Create Configuration Files:**
+    *   **`mcp_servers.json`:**
+        (See example content from previous responses or create your own based on the structure)
+        Example:
+        ```json
+        {
+          "mcpServers": {
+            "weather": {
+              "command": "python",
+              "args": ["../path/to/your/weather_server.py"],
+              "description": "Weather MCP server"
+            },
+            "context7": {
+              "command": "npx",
+              "args": ["-y", "@upstash/context7-mcp@latest"],
+              "env": {"DEFAULT_MINIMUM_TOKENS": "10000"},
+              "description": "Context7 MCP server"
+            }
+          }
+        }
+        ```
+        *Ensure paths in `args` for local servers are correct relative to where `cli.py` is run.*
+
+    *   **`workflows.json`:**
+        (See example content from previous responses or create your own)
+        Example:
+        ```json
+        {
+          "workflows": {
+            "weather_assistant": {
+              "description": "Ask about the weather.",
+              "llm_model": "gemini-1.5-flash-latest",
+              "mcp_servers_used": ["weather"],
+              "initial_prompt_template": "You are a helpful weather assistant. User Query: {query}",
+              "max_conversation_turns": 5
+            },
+            "multi_tool_agent": {
+              "description": "An agent that can use weather and context7.",
+              "llm_model": "gemini-1.5-flash-latest",
+              "mcp_servers_used": ["weather", "context7"],
+              "initial_prompt_template": "You are a multi-talented assistant. User Query: {query}",
+              "max_conversation_turns": 7
+            }
+          }
+        }
+        ```
 
 ## Usage
 
-### Commands
+All commands are run from the project root directory where `cli.py` is located.
 
-The client can be run in two modes: configuration-driven (using a server name from `.mcp.json`) or script-based (specifying a server script directly).
+**1. List Available Workflows:**
+   ```bash
+   python cli.py --list-workflows
+   # or
+   python cli.py -l
+   ```
 
-* **Run with a Configured Server:**
-    Connect to a server defined in `.mcp.json`:
-    ```bash
-    python client-g6.py --server weather
-    ```
-    Example output:
-    ```
-    Available servers: ['weather', 'context7']
-    Connected to server with tools: ['get_alerts', 'get_forecast']
+**2. Run a Workflow (Interactive Chat Mode):**
+   ```bash
+   python cli.py <workflow_name>
+   ```
+   Example:
+   ```bash
+   python cli.py multi_tool_agent
+   ```
+   Then type your queries at the "Query:" prompt. Type `quit` to exit the chat loop.
 
-    MCP Client (Google GenAI SDK Edition) Started!
-    Using Gemini model: gemini-2.5-flash-preview-04-17
-    Type your queries or 'quit' to exit.
+**3. Run a Workflow with a Single Query (Non-Interactive):**
+   ```bash
+   python cli.py <workflow_name> --query "Your question here"
+   ```
+   Example:
+   ```bash
+   python cli.py weather_assistant --query "What's the weather in London?"
+   ```
 
-    Query:
-    ```
-* **Run with a Script Path:**
-    Connect to a server by specifying its script directly (legacy mode):
-    ```bash
-    python client-g6.py --script ../weather/weather.py
-    ```
-    This bypasses `.mcp.json` and runs the specified script (Python or JavaScript).
-* **Use a Custom Configuration File:**
-    Specify a custom `.mcp.json` file:
-    ```bash
-    python client-g6.py --server weather --config /path/to/custom/.mcp.json
-    ```
+**4. Controlling Log Verbosity (Console Output):**
+   The `--log-level` option controls how much log information is printed to the console.
+   *   `quiet`: Minimal output (mostly just `print` statements from the CLI).
+   *   `user`: (Default) Shows key interactions like LLM turns and tool calls.
+   *   `normal`: More operational info (INFO level logs).
+   *   `verbose`: Detailed debug output.
 
-### Interactive Queries
+   Examples:
+   ```bash
+   # Default (user level)
+   python cli.py multi_tool_agent
 
-Once connected, enter queries like:
-* "What's the weather forecast for 40.7128,-74.0060?" (New York City coordinates).
-* "Are there any weather alerts in CA?"
+   # Verbose console output
+   python cli.py multi_tool_agent --log-level verbose
 
-Type `quit` to exit.
+   # Normal console output
+   python cli.py multi_tool_agent --log-level normal
 
-### Example Workflow
+   # Quiet console output (from the logger)
+   python cli.py multi_tool_agent --log-level quiet
+   ```
 
-1.  Ensure `.mcp.json` is set up with the weather server:
-    ```json
-    {
-      "mcpServers": {
-        "weather": {
-          "command": "python",
-          "args": ["../weather/weather.py"],
-          "env": {
-            "PYTHONPATH": "."
-          },
-          "transportType": "stdio",
-          "description": "Weather MCP server for fetching forecasts and alerts"
-        }
-      }
-    }
-    ```
-2.  Run the client:
-    ```bash
-    python client-g6.py --server weather
-    ```
-3.  Query the server:
-    ```
-    Query: What's the weather in New York?
-    [LLM wants to call tool 'get_forecast' with args: {'latitude': 40.7128, 'longitude': -74.0060}]
-    [Tool 'get_forecast' executed. Result: <forecast details>]
-    The weather forecast for New York is: <formatted forecast>
-    ```
+**5. Disabling File Logging:**
+   By default, detailed logs are written to `app_client.log`. To disable this:
+   ```bash
+   python cli.py multi_tool_agent --no-log-file
+   ```
 
-## Configuration File Structure
+**6. Using Custom Configuration File Paths:**
+   ```bash
+   python cli.py multi_tool_agent \
+       --mcp-config /path/to/your/custom_mcp_servers.json \
+       --workflows-config /path/to/your/custom_workflows.json
+   ```
 
-The `.mcp.json` file defines MCP server configurations. It can be placed in:
+## Development & Troubleshooting
 
-* The project directory (`mcp-client/.mcp.json` or `mcp-client/mcp.json`).
-* The user home directory (`~/.mcp/mcp.json`).
+*   Check `app_client.log` for detailed logs, especially if console output is minimal or errors occur.
+*   Use `--log-level verbose` for maximum insight into the application's operations.
+*   Ensure MCP server commands specified in `mcp_servers.json` are correct and executable from your environment.
+*   Verify your `GOOGLE_API_KEY` is correctly set and has access to the Gemini API.
 
-### Structure
+---
 
-```json
-{
-  "mcpServers": {
-    "<server_name>": {
-      "command": "<executable>",
-      "args": ["<arg1>", "<arg2>", ...],
-      "env": {
-        "<key>": "<value>",
-        ...
-      },
-      "transportType": "<transport>",
-      "description": "<description>"
-    },
-    ...
-  }
-}
+## Architectural Mermaid Diagrams
+
+Here are diagrams focusing on the architecture and interactions, especially around the `engine.py` and its use of MCP/tools.
+
+**Diagram 1: Overall System Architecture & Configuration**
+
+```mermaid
+graph TD
+    User["User (CLI)"] -- Interacts via --> CLI["cli.py<br>(ArgParse, Chat Loop)"];
+    
+    CLI -- Initializes & Uses --> AppLogger["app_logger.py<br>(Logging Setup & Control)"];
+    CLI -- Instantiates --> AppConfig_Instance["AppConfig Instance<br>(from config.py)"];
+    CLI -- Instantiates & Runs --> WorkflowEngine_Instance["WorkflowEngine Instance<br>(from engine.py)"];
+
+    AppConfig_Instance -- Reads --> MCPServersJSON["mcp_servers.json<br>(Server Definitions)"];
+    AppConfig_Instance -- Reads --> WorkflowsJSON["workflows.json<br>(Workflow Definitions)"];
+    AppConfig_Instance -- Reads Env --> DotEnv[".env / OS Env<br>(API Keys)"];
+
+    subgraph CoreLogic
+        WorkflowEngine_Instance -- Uses Config from --> AppConfig_Instance;
+        WorkflowEngine_Instance -- Uses --> LLMService_Instance["LLMService Instance<br>(from services.py)"];
+        WorkflowEngine_Instance -- Manages --> MCPService_Instances["Dict[str, MCPService Instance]<br>(from services.py)"];
+    end
+    
+    AppLogger -- Configures Logging For --> CLI;
+    AppLogger -- Configures Logging For --> AppConfig_Instance;
+    AppLogger -- Configures Logging For --> WorkflowEngine_Instance;
+    AppLogger -- Configures Logging For --> LLMService_Instance;
+    AppLogger -- Configures Logging For --> MCPService_Instances;
+
+    style User fill:#cde,stroke:#333,stroke-width:2px,color:#000
+    style CLI fill:#f9d,stroke:#333,stroke-width:2px,color:#000
+    style MCPServersJSON fill:#dfd,stroke:#333,stroke-width:1px,color:#000
+    style WorkflowsJSON fill:#dfd,stroke:#333,stroke-width:1px,color:#000
+    style DotEnv fill:#dfd,stroke:#333,stroke-width:1px,color:#000
+    style CoreLogic fill:#fff,stroke:#666,stroke-width:2px,stroke-dasharray: 5 5
 ```
 
-### Fields
+**Diagram 2: `WorkflowEngine` Initialization and Service Setup**
 
-* **Required**
-    * `mcpServers`: A dictionary mapping server names (e.g., `weather`, `context7`) to their configurations.
-    * `command` (per server): The executable to run the server (e.g., `python`, `node`, `npx`).
-    * `args` (per server): A list of arguments to pass to the command (e.g., `["../weather/weather.py"]`).
-* **Optional**
-    * `env` (per server): A dictionary of environment variables to set when running the server (e.g., `{"PYTHONPATH": "."}`).
-    * `transportType` (per server): The transport protocol for communication. Defaults to `stdio`. Currently, only `stdio` is supported.
-    * `description` (per server): A human-readable description of the server (e.g., "Weather MCP server for fetching forecasts and alerts").
+This diagram shows what happens when `WorkflowEngine` is created and `setup_services()` is called.
 
-### Example
+```mermaid
+sequenceDiagram
+    participant CLI as "cli.py (main)"
+    participant AppConfig as "AppConfig Instance"
+    participant WorkflowEngine as "WorkflowEngine Instance"
+    participant LLMService_Class as "LLMService (Class)"
+    participant LLMService_Inst as "LLMService (Instance)"
+    participant MCPService_Class as "MCPService (Class)"
+    participant MCPService_Weather as "MCPService ('weather')"
+    participant MCPService_Context7 as "MCPService ('context7')"
+    participant ExitStack as "AsyncExitStack<br>(in WorkflowEngine)"
+    participant WeatherServerProc as "Weather MCP Server Process"
+    participant Context7ServerProc as "Context7 MCP Server Process"
 
-```json
-{
-  "mcpServers": {
-    "weather": {
-      "command": "python",
-      "args": ["../weather/weather.py"],
-      "env": {
-        "PYTHONPATH": "."
-      },
-      "transportType": "stdio",
-      "description": "Weather MCP server for fetching forecasts and alerts"
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"],
-      "env": {
-        "DEFAULT_MINIMUM_TOKENS": "10000"
-      },
-      "transportType": "stdio",
-      "description": "Context7 MCP server for up-to-date documentation"
-    }
-  }
-}
+    CLI->>AppConfig: Get Workflow Config ('multi_tool_agent')
+    AppConfig-->>CLI: wf_config (model, mcp_servers_used, etc.)
+    CLI->>WorkflowEngine: __init__('multi_tool_agent', AppConfig)
+    WorkflowEngine->>AppConfig: Get API Key
+    AppConfig-->>WorkflowEngine: GOOGLE_API_KEY
+    WorkflowEngine->>LLMService_Class: Instantiate LLMService(model, api_key)
+    LLMService_Class-->>LLMService_Inst: self.llm_service
+    LLMService_Inst-->>WorkflowEngine: LLMService ready
+
+    CLI->>WorkflowEngine: await setup_services()
+    WorkflowEngine->>WorkflowEngine: Log "Setting up services..."
+    
+    loop For each server_name in wf_config['mcp_servers_used'] (e.g., "weather", "context7")
+        WorkflowEngine->>AppConfig: Get MCP Server Config (server_name)
+        AppConfig-->>WorkflowEngine: server_config (command, args)
+        
+        WorkflowEngine->>MCPService_Class: Instantiate MCPService(server_name, server_config, self.exit_stack)
+        alt server_name is "weather"
+            MCPService_Class-->>MCPService_Weather: weather_service instance
+            WorkflowEngine->>MCPService_Weather: await connect()
+            MCPService_Weather->>ExitStack: Enters stdio_client context (spawns WeatherServerProc)
+            MCPService_Weather->>ExitStack: Enters ClientSession context
+            MCPService_Weather->>WeatherServerProc: Initialize & List Tools
+            WeatherServerProc-->>MCPService_Weather: Tools (e.g., get_forecast)
+            MCPService_Weather-->>WorkflowEngine: Connection OK
+            WorkflowEngine->>WorkflowEngine: Add weather_service to self.mcp_services
+            WorkflowEngine->>WorkflowEngine: Add weather tools to self.all_mcp_tools
+        else server_name is "context7"
+            MCPService_Class-->>MCPService_Context7: context7_service instance
+            WorkflowEngine->>MCPService_Context7: await connect()
+            MCPService_Context7->>ExitStack: Enters stdio_client context (spawns Context7ServerProc)
+            MCPService_Context7->>ExitStack: Enters ClientSession context
+            MCPService_Context7->>Context7ServerProc: Initialize & List Tools
+            Context7ServerProc-->>MCPService_Context7: Tools (e.g., resolve-library-id)
+            MCPService_Context7-->>WorkflowEngine: Connection OK
+            WorkflowEngine->>WorkflowEngine: Add context7_service to self.mcp_services
+            WorkflowEngine->>WorkflowEngine: Add context7 tools to self.all_mcp_tools
+        end
+    end
+    WorkflowEngine->>WorkflowEngine: Log "Workflow services setup complete"
+    WorkflowEngine-->>CLI: setup_services() complete
 ```
 
-### Notes
+**Diagram 3: The elusive buggy seq diag:**
+```mermaid
+graph LR
+    subgraph UserInteraction [User Interaction]
+        CLI["cli.py<br>(Entry Point, ArgParser, Chat Loop)"]
+    end
 
-* **Server Names:** Must be unique within `mcpServers`.
-* **File Locations:** The client searches for `.mcp.json` or `mcp.json` in the current directory, then `~/.mcp/mcp.json`. A custom path can be specified with `--config`.
-* **Validation:** The client validates the JSON structure and required fields, logging errors to `client_debug.log` if issues are found.
+    subgraph ConfigurationManagement [Configuration Management]
+        ConfigPY["config.py<br>(AppConfig: Loads JSONs, Env Vars)"]
+        WorkflowsJSON["workflows.json<br>(Workflow Definitions)"]
+        MCPServersJSON["mcp_servers.json<br>(MCP Server Definitions)"]
+        DotEnv[".env / OS Env<br>(API Keys)"]
+    end
 
-## Limitations
+    subgraph CoreExecutionEngine [Core Execution Engine]
+        EnginePY["engine.py<br>(WorkflowEngine: Orchestrates query processing, turn management, state)"]
+    end
 
-The current implementation of `client-g6.py` has some constraints that affect the types of MCP servers it can interact with and its overall functionality. These are important to understand when deploying or extending the client.
+    subgraph ServiceAbstractions [Service Abstractions]
+        ServicesPY["services.py<br>(LLMService, MCPService)"]
+    end
+    
+    subgraph ExternalServices [External Services]
+        direction LR
+        GeminiAPI["Google Gemini API<br>(LLM Endpoint)"]
+        MCPServer_Weather["Weather MCP Server<br>(e.g., weather.py process)"]
+        MCPServer_Context7["Context7 MCP Server<br>(e.g., npx @upstash/context7-mcp process)"]
+        %% Add more MCP servers as needed
+    end
 
-* **Transport Protocol:**
-    * **Limitation:** Only supports the `stdio` transport protocol.
-    * **Impact:** Servers using other transports (e.g., `tcp`, `websocket`) are not compatible without extending the `connect_to_server` method.
-    * **Compatible Servers:** Servers like `weather.py` (Python, stdio) or Context7 (JavaScript, stdio via npx).
-* **Tool Schema Compatibility:**
-    * **Limitation:** The `_convert_mcp_tool_to_genai_function_declaration` method assumes MCP tools have a JSON Schema-compatible `inputSchema` with `properties` and `required` fields.
-    * **Impact:** Servers with non-standard or malformed tool schemas may cause warnings or failures when converting to GenAI function declarations.
-    * **Workaround:** The client logs warnings for invalid schemas and defaults to string types, but complex schemas may require manual adjustments.
-* **Single Server Connection:**
-    * **Limitation:** The client connects to one server at a time.
-    * **Impact:** Cannot route queries across multiple servers or use tools from different servers in a single session.
-    * **Future Enhancement:** Add support for multiple concurrent server connections and tool routing.
-* **GenAI Dependency:**
-    * **Limitation:** Relies on the Google GenAI SDK and a specific model (`gemini-2.5-flash-preview-04-17`).
-    * **Impact:** Requires a valid API key and internet access. Model availability or deprecation could break the client.
-    * **Workaround:** Update `DEFAULT_GEMINI_MODEL` if the model changes, or extend to support other LLMs.
-* **Error Handling:**
-    * **Limitation:** While robust, some edge cases (e.g., server crashes, malformed tool responses) may result in generic error messages.
-    * **Impact:** Debugging complex issues requires checking `client_debug.log`.
-    * **Workaround:** Enhance error handling for specific MCP protocol errors.
-* **Platform Dependencies:**
-    * **Limitation:** Assumes `python` or `node` executables are available for running server scripts.
-    * **Impact:** Servers requiring other runtimes (e.g., Deno, Bun) or Docker containers are not supported without modifying the configuration.
-    * **Workaround:** Extend `connect_to_server` to support additional runtimes or Docker.
-* **Cleanup Issues:**
-    * **Limitation:** Occasional anyio errors during cleanup (`RuntimeError: Attempted to exit cancel scope in a different task`) indicate potential issues with `AsyncExitStack` management.
-    * **Impact:** May leave resources open in rare cases.
-    * **Workaround:** The cleanup method includes error handling, but further investigation into `mcp` and `anyio` interactions may be needed.
+    subgraph Logging [Logging Subsystem]
+        AppLoggerPY["app_logger.py<br>(Logging Setup & Abstraction)"]
+    end
 
-## Compatible Servers
+    %% Relationships / Data Flow / Control Flow
+    CLI -->|Uses for setup & control| AppLoggerPY
+    CLI -->|Instantiates & Uses| ConfigPY
+    CLI -->|Instantiates & Runs| EnginePY
 
-The client works with MCP servers that:
+    ConfigPY -->|Reads| WorkflowsJSON
+    ConfigPY -->|Reads| MCPServersJSON
+    ConfigPY -->|Reads| DotEnv
 
-* Use the `stdio` transport protocol.
-* Expose tools with JSON Schema-compatible `inputSchema` (e.g., `properties`, `required` fields).
-* Are executable via `python` or `node` (or other runtimes if configured).
+    EnginePY -->|Uses config from| ConfigPY
+    EnginePY -->|Uses for LLM calls| ServicesPY
+    EnginePY -->|Uses for Tool calls| ServicesPY
+    EnginePY -->|Uses for logging| AppLoggerPY
+    
+    ServicesPY -->|Interacts with| GeminiAPI
+    ServicesPY -->|Manages connections to & calls| MCPServer_Weather
+    ServicesPY -->|Manages connections to & calls| MCPServer_Context7
+    ServicesPY -->|Uses for logging| AppLoggerPY
 
-Examples:
+    %% All components can potentially use AppLoggerPY for their logging
+    ConfigPY -.->|Uses for logging| AppLoggerPY
 
-* `weather.py`: A Python-based server providing `get_alerts` and `get_forecast` tools.
-* Context7 MCP: A JavaScript-based server (via `npx`) for documentation retrieval.
+    %% Styling (optional, for clarity)
+    style UserInteraction fill:#e6e6fa,stroke:#333,stroke-width:2px
+    style ConfigurationManagement fill:#f0e68c,stroke:#333,stroke-width:2px
+    style CoreExecutionEngine fill:#add8e6,stroke:#333,stroke-width:2px
+    style ServiceAbstractions fill:#90ee90,stroke:#333,stroke-width:2px
+    style ExternalServices fill:#ffb6c1,stroke:#333,stroke-width:2px
+    style Logging fill:#d3d3d3,stroke:#333,stroke-width:2px
+```
 
-## Troubleshooting
 
-* **Configuration Not Found:**
-    * Ensure `.mcp.json` or `mcp.json` exists in `mcp-client/` or `~/.mcp/`.
-    * Verify the server name matches an entry in `mcpServers`.
-* **Connection Refused:**
-    * Check that the server script (e.g., `../weather/weather.py`) exists and is executable.
-    * Confirm dependencies (`mcp`, `httpx`) are installed for the server.
-* **GenAI Errors:**
-    * Verify `GOOGLE_API_KEY` is set in `.env` or the environment.
-    * Ensure the Gemini model is accessible with your API key.
-* **Logs:**
-    * Check `client_debug.log` in the project directory for detailed error messages.
+ **Diagram 4: Class Diagram:**
 
-## Development
+ ```mermaid
+ classDiagram
+    class WorkflowEngine {
+        -workflow_name: str
+        -app_config: AppConfig
+        -workflow_config: Dict
+        -llm_service: LLMService
+        -mcp_services: Dict[str, MCPService]
+        -all_mcp_tools: List[Tool]
+        -exit_stack: AsyncExitStack
+        +__init__(workflow_name, app_config)
+        +setup_services() async
+        +process_user_query(user_query) async
+        +close() async
+    }
+    
+    class MCPService {
+        -server_name: str
+        -server_config: Dict
+        -exit_stack: AsyncExitStack
+        -session: ClientSession
+        -stdio
+        -input
+        +__init__(server_name, server_config, exit_stack)
+        +connect() async
+        +get_tools() async
+        +call_tool(tool_name, args) async
+    }
+    
+    class LLMService {
+        -model_name: str
+        -genai_client
+        +__init__(model_name, api_key)
+        -_convert_mcp_tool_to_genai_function(mcp_tool)
+        +prepare_tools_for_llm(mcp_tools)
+        +generate_response(conversation_history, tool_config) async
+    }
+    
+    class AppConfig {
+        -mcp_config_path: str
+        -workflows_config_path: str
+        -mcp_servers: Dict
+        -workflows: Dict
+        -google_api_key: str
+        +__init__(mcp_config_path, workflows_config_path)
+        +get_mcp_server_config(server_name)
+        +get_workflow_config(workflow_name)
+        +list_workflows()
+    }
+    
+    class Tool {
+        +name: str
+        +description: str
+        +inputSchema: Dict
+    }
+    
+    WorkflowEngine --> AppConfig : uses
+    WorkflowEngine --> LLMService : uses
+    WorkflowEngine --> MCPService : uses multiple
+    LLMService ..> Tool : converts
+    MCPService ..> Tool : provides
+```
 
-### Extending the Client
+**Diagram 5: Component Diagram**
 
-To support additional features:
+```mermaid
+flowchart TB
+    subgraph User
+        CLI[cli.py]
+    end
+    
+    subgraph AppCore
+        Engine[engine.py<br>WorkflowEngine]
+        Config[config.py<br>AppConfig]
+        AppLogger[app_logger.py]
+    end
+    
+    subgraph Services
+        MCPSrv[services.py<br>MCPService]
+        LLMSrv[services.py<br>LLMService]
+    end
+    
+    subgraph ExternalSystems
+        MCPServers[External MCP Servers]
+        GoogleGenAI[Google GenAI API]
+    end
+    
+    CLI -- "1. Starts workflow<br>args parsing" --> Config
+    CLI -- "2. Creates engine<br>3. Runs chat loop" --> Engine
+    Engine -- "Logging" --> AppLogger
+    CLI -- "Logging" --> AppLogger
+    Engine -- "Fetches config" --> Config
+    Engine -- "Creates & uses" --> LLMSrv
+    Engine -- "Creates & uses" --> MCPSrv
+    MCPSrv -- "Connects to" --> MCPServers
+    MCPSrv -- "Gets tools & calls tools" --> MCPServers
+    LLMSrv -- "Makes API requests" --> GoogleGenAI
+    MCPSrv -- "Logging" --> AppLogger
+    LLMSrv -- "Logging" --> AppLogger
+    
+    classDef core fill:#f9f,stroke:#333,stroke-width:2px,color:#000;
+    classDef services fill:#bbf,stroke:#333,stroke-width:1px,color:#000;
+    classDef external fill:#bfb,stroke:#333,stroke-width:1px,color:#000;
+    classDef userFacing fill:#fbb,stroke:#333,stroke-width:2px,color:#000;
+    
+    class Engine,Config,AppLogger core;
+    class MCPSrv,LLMSrv services;
+    class MCPServers,GoogleGenAI external;
+    class CLI userFacing;
+```
 
-* **New Transport Types:**
-    * Modify `connect_to_server` to handle `tcp` or other transports.
-    * Example: Add logic for TCP connections using `asyncio.open_connection`.
-* **Multiple Servers:**
-    * Extend `MCPClient` to manage multiple `ClientSession` instances and route queries based on tool availability.
-* **Custom LLMs:**
-    * Replace or augment the Google GenAI SDK with other LLM providers (e.g., OpenAI, Anthropic).
+**Diagram 6: App Startup Sequence Diag**
 
-### Testing
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as "cli.py main()"
+    participant AppConfig as "AppConfig"
+    participant Engine as "WorkflowEngine"
+    participant Logger as "app_logger"
+    participant MCPServices as "MCPService(s)"
+    participant MCPServers as "MCP Server(s)"
+    
+    User->>CLI: Run with arguments
+    CLI->>Logger: setup_logging(level, console_level, log_file)
+    Logger-->>CLI: Loggers configured
+    
+    CLI->>AppConfig: Create(mcp_cfg_path, workflows_cfg_path)
+    AppConfig->>AppConfig: Load configs from files/defaults
+    AppConfig-->>CLI: app_config instance
+    
+    alt --list-workflows flag
+        CLI->>AppConfig: list_workflows()
+        AppConfig-->>CLI: workflows list
+        CLI->>User: Display workflows & exit
+    else normal operation
+        CLI->>Engine: Create(workflow_name, app_config)
+        Engine->>AppConfig: get_workflow_config(workflow_name)
+        AppConfig-->>Engine: workflow_config
+        Engine->>Engine: Init LLMService(model, api_key)
+        
+        CLI->>Engine: await setup_services()
+        
+        loop For each MCP server in workflow config
+            Engine->>AppConfig: get_mcp_server_config(server_name)
+            AppConfig-->>Engine: server_config
+            Engine->>MCPServices: Create(server_name, server_config, exit_stack)
+            Engine->>MCPServices: await connect()
+            MCPServices->>MCPServers: Initialize connection
+            MCPServers-->>MCPServices: Connection established
+            MCPServices->>MCPServers: list_tools()
+            MCPServers-->>MCPServices: Available tools
+            MCPServices-->>Engine: Connected service with tools
+        end
+        
+        alt --query argument provided
+            CLI->>Engine: await process_user_query(args.query)
+            Engine->>User: Display response & exit
+        else interactive mode
+            CLI->>CLI: await run_chat_loop(engine)
+            loop Until user types 'quit'
+                CLI->>User: Prompt for query
+                User->>CLI: Enter query
+                CLI->>Engine: await process_user_query(query)
+                Engine-->>CLI: response_text
+                CLI->>User: Display response
+            end
+        end
+    end
+    
+    CLI->>Engine: await engine.close()
+    Engine->>MCPServices: Close connections
+    CLI->>Logger: shutdown()
+```
 
-* Test with the included weather server:
-    ```bash
-    python client-g6.py --server weather
-    ```
-    Query examples:
-    * "Get weather alerts for CA"
-    * "Forecast for 37.7749,-122.4194" (San Francisco coordinates)
-* Test with a script path:
-    ```bash
-    python client-g6.py --script ../weather/weather.py
-    ```
+**Diagram 7: Logging Architecture **
 
-### Debugging
+```mermaid
+flowchart LR
+    classDef appLoggers fill:#f9f,stroke:#333,stroke-width:1px,color:#000;
+    classDef handlers fill:#bbf,stroke:#333,stroke-width:1px,color:#000;
+    classDef logLevels fill:#bfb,stroke:#333,stroke-width:1px,color:#000;
+    classDef helpers fill:#fbb,stroke:#333,stroke-width:1px,color:#000;
+    
+    Setup[setup_logging<br>function]
+    
+    subgraph "Logger Instances"
+        Root[Root Logger]
+        CLI[CLI_LOGGER<br>app.cli]
+        CONFIG[CONFIG_LOGGER<br>app.config]
+        ENGINE[ENGINE_LOGGER<br>app.engine]
+        SERVICE[SERVICE_LOGGER<br>app.service]
+        ThirdParty[Third-Party Loggers<br>Google API/httpx]
+    end
+    
+    subgraph "Logger Helpers"
+        CLI_Helpers[cli_log_debug<br>cli_log_info<br>cli_log_user<br>cli_log_warning<br>cli_log_error<br>cli_log_critical]
+        ENGINE_Helpers[engine_log_debug<br>engine_log_info<br>engine_log_user<br>engine_log_warning<br>engine_log_error<br>engine_log_critical]
+        CONFIG_Helpers[config_log_debug<br>config_log_info<br>config_log_warning<br>config_log_error]
+        SERVICE_Helpers[service_log_debug<br>service_log_info<br>service_log_warning<br>service_log_error]
+    end
+    
+    subgraph "Handlers"
+        ConsoleHandler[Console Handler<br>- Configured by console_level_override<br>- Format varies by level]
+        FileHandler["File Handler<br>- Always verbose (DEBUG)<br>- Detailed format"]
+        NullHandler[Null Handler<br>- Used when logging disabled]
+    end
+    
+    subgraph "Log Levels"
+        LOG_LEVEL_QUIET["LOG_LEVEL_QUIET<br>(CRITICAL + 10)"]
+        LOG_LEVEL_USER_INTERACTION["LOG_LEVEL_USER_INTERACTION<br>(INFO + 5)"]
+        LOG_LEVEL_NORMAL["LOG_LEVEL_NORMAL<br>(INFO)"]
+        LOG_LEVEL_VERBOSE["LOG_LEVEL_VERBOSE<br>(DEBUG)"]
+    end
+    
+    CLI_Helpers --> CLI
+    ENGINE_Helpers --> ENGINE
+    CONFIG_Helpers --> CONFIG
+    SERVICE_Helpers --> SERVICE
+    
+    Root --> ConsoleHandler
+    Root --> FileHandler
+    Root --> NullHandler
+    
+    CLI --> Root
+    CONFIG --> Root
+    ENGINE --> Root
+    SERVICE --> Root
+    ThirdParty --> Root
+    
+    Setup --> ConsoleHandler
+    Setup --> FileHandler
+    Setup --> NullHandler
+    Setup --> Root
+    
+    LOG_LEVEL_QUIET -.-> Setup
+    LOG_LEVEL_USER_INTERACTION -.-> Setup
+    LOG_LEVEL_NORMAL -.-> Setup
+    LOG_LEVEL_VERBOSE -.-> Setup
+    
+    class CLI,CONFIG,ENGINE,SERVICE,ThirdParty,Root appLoggers;
+    class ConsoleHandler,FileHandler,NullHandler handlers;
+    class LOG_LEVEL_QUIET,LOG_LEVEL_USER_INTERACTION,LOG_LEVEL_NORMAL,LOG_LEVEL_VERBOSE logLevels;
+    class CLI_Helpers,ENGINE_Helpers,CONFIG_Helpers,SERVICE_Helpers helpers;
+```
 
-* Enable verbose logging by ensuring `logging.basicConfig(level=logging.DEBUG)` in `client-g6.py`.
-* Inspect `client_debug.log` for detailed traces.
-* Use `--config` to test alternative `.mcp.json` files.
+**Diagram 8: MCP Tool Data Flow**
 
-## License
+```mermaid
+flowchart TD
+    classDef mcpComponents fill:#f9f,stroke:#333,stroke-width:1px,color:#000;
+    classDef llmComponents fill:#bbf,stroke:#333,stroke-width:1px,color:#000;
+    classDef dataStructure fill:#bfb,stroke:#333,stroke-width:1px,color:#000;
+    
+    MCPServer[External MCP Server<br>with tool definitions]
+    MCPService[MCPService]
+    MCPTools[MCP Tools List<br>- name<br>- description<br>- inputSchema]
+    
+    GenAIFunctions[GenAI Function Declarations]
+    LLMService[LLMService]
+    LLMToolConfig[GenAI Tool Config]
+    
+    LLMResponse[LLM Response<br>with function_call]
+    FunctionParams[Function Call Parameters]
+    ToolResult[Tool Execution Result]
+    FunctionResponse[Function Response<br>for LLM]
+    
+    subgraph "MCP Tool Registration"
+        MCPServer -->|"connect()"| MCPService
+        MCPService -->|"get_tools()"| MCPTools
+    end
+    
+    subgraph "Tool Conversion for LLM"
+        MCPTools -->|"prepare_tools_for_llm()"| LLMService
+        LLMService -->|"_convert_mcp_tool_to_genai_function()"| GenAIFunctions
+        GenAIFunctions -->|wrapped in Tool objects| LLMToolConfig
+    end
+    
+    subgraph "Tool Execution Flow"
+        LLMToolConfig -->|sent with LLM request| LLMResponse
+        LLMResponse -->|extracts part.function_call| FunctionParams
+        FunctionParams -->|"call_tool(tool_name, args)"| MCPService
+        MCPService -->|forwards to MCP server| MCPServer
+        MCPServer -->|executes tool<br>returns result| MCPService
+        MCPService -->|returns result| ToolResult
+        ToolResult -->|formatted as| FunctionResponse
+        FunctionResponse -->|added to conversation history| LLMService
+    end
+    
+    class MCPServer,MCPService,MCPTools mcpComponents;
+    class GenAIFunctions,LLMService,LLMToolConfig,LLMResponse llmComponents;
+    class FunctionParams,ToolResult,FunctionResponse dataStructure;
+```
+<!-- 
+**Diagram 9: **
 
-MIT
+```mermaid
+
+``` -->

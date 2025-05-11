@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "weather": {
+      "command": "python",
+      "args": ["../weather/weather.py"],
+      "env": {"PYTHONPATH": "."},
+      "description": "Weather MCP server"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "env": {"DEFAULT_MINIMUM_TOKENS": "10000"},
+      "description": "Context7 MCP server"
+    }
+  }
+}

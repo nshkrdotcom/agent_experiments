@@ -1,0 +1,26 @@
+{
+  "workflows": {
+    "multi_tool_agent": {
+      "description": "An agent that can use both weather and context7.",
+      "llm_model": "gemini-1.5-flash-latest",
+      "mcp_servers_used": ["weather", "context7"],
+      "initial_prompt_template": "You are a multi-talented assistant. You can fetch weather information and search documentation using available tools.\nWhen using Context7 for documentation:\n1. First, if you are unsure of the exact library ID, use the 'resolve-library-id' tool with the general library name.\n2. Review the results from 'resolve-library-id'.\n3. Then, use the 'get-library-docs' tool with the most relevant 'context7CompatibleLibraryID' from the previous step and a specific 'topic' if applicable, to get the documentation content.\n4. Finally, synthesize an answer based on the retrieved documentation.\nUser Query: {query}",
+      "max_conversation_turns": 7
+    }
+
+    "weather_assistant": {
+      "description": "Ask about the weather using the weather MCP server.",
+      "llm_model": "gemini-1.5-flash-latest",
+      "mcp_servers_used": ["weather"],
+      "initial_prompt_template": "You are a helpful weather assistant. The user will ask about the weather. Use the available tools to answer their questions. User Query: {query}",
+      "max_conversation_turns": 5
+    },
+    "doc_search_pro": {
+      "description": "Search documentation using Context7 and a more powerful model.",
+      "llm_model": "gemini-1.5-pro-latest", 
+      "mcp_servers_used": ["context7"],
+      "initial_prompt_template": "You are an expert documentation searcher. Use the Context7 tool to find relevant information for the user's query. User Query: {query}",
+      "max_conversation_turns": 3
+    },
+  }
+}

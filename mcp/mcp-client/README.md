@@ -644,9 +644,72 @@ flowchart TD
     class GenAIFunctions,LLMService,LLMToolConfig,LLMResponse llmComponents;
     class FunctionParams,ToolResult,FunctionResponse dataStructure;
 ```
-<!-- 
-**Diagram 9: **
+
+# HIGHER LEVEL DIAGS (MAYBE BETTER FOR YOU)
+
+**Diagram 9: MCP Client Architecture**
 
 ```mermaid
+flowchart TD
+    subgraph Client ["MCP Client Application"]
+        CLI[CLI Interface] --> Engine[WorkflowEngine]
+        Config[AppConfig] --> Engine
+        Engine --> LLM[LLMService]
+        Engine --> MCP1[MCPService 1]
+        Engine --> MCP2[MCPService 2]
+        Engine --> MCPn[MCPService n]
+        Logger[AppLogger] --- CLI
+        Logger --- Engine
+        Logger --- LLM
+        Logger --- MCP1
+        Logger --- MCP2
+        Logger --- MCPn
+    end
 
-``` -->
+    subgraph External ["External Systems"]
+        GoogleLLM[Google Gemini API]
+        MCP_Server1[MCP Server 1]
+        MCP_Server2[MCP Server 2]  
+        MCP_Servern[MCP Server n]
+    end
+
+    %% Data flow connections
+    LLM <-->|API calls| GoogleLLM
+    MCP1 <-->|Tool calls| MCP_Server1
+    MCP2 <-->|Tool calls| MCP_Server2
+    MCPn <-->|Tool calls| MCP_Servern
+    
+    %% User interaction
+    User((User)) <-->|Queries & Responses| CLI
+    LogFile[(Log File)] <-- Logging --> Logger
+```
+
+**Diagram 10: MCP Client Data Flow**
+
+```mermaid
+flowchart LR
+    subgraph Workflow ["Single Workflow Execution"]
+        direction TB
+        User((User)) -->|Query| Engine[WorkflowEngine]
+        Engine -->|1 Initial prompt| LLM[LLM Service]
+        LLM -->|2 Response with tool call| Engine
+        Engine -->|3 Tool execution request| MCP[MCP Services]
+        MCP -->|4 Tool execution result| Engine
+        Engine -->|5 Tool result| LLM
+        LLM -->|6 Final response| Engine
+        Engine -->|7 Response text| User
+    end
+    
+    subgraph External ["External Services"]
+        direction LR
+        GoogleLLM[Google Gemini API]
+        Tool1[Calculator Server]
+        Tool2[Web Search Server]
+        Tool3[Data Analysis Server]
+    end
+    
+    LLM <-->|API calls| GoogleLLM
+    MCP <-->|Command execution| Tool1
+    MCP <-->|Command execution| Tool2
+    MCP <-->|Command execution| Tool3
+```

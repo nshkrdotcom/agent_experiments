@@ -7,7 +7,7 @@ Okay, let's break down the `fast-agent` software design through a series of Merm
 This diagram shows the major components of the Fast-Agent ecosystem and how they relate to each other and external services.
 
 ```mermaid
-graph LR
+graph TD
     subgraph UserInteraction["User Interaction"]
         direction LR
         CLI["CLI (fast-agent go/setup/...)"]
@@ -86,7 +86,7 @@ graph LR
 This diagram drills into the `FastAgent Application Core`, showing how its main internal components are structured and interact.
 
 ```mermaid
-graph TD
+graph LR
     subgraph UserCode ["User Code (e.g., agent.py)"]
         direction TB
         DefineAgent["@fast.agent(...) def my_agent(): ..."]
@@ -669,7 +669,7 @@ graph TD
     Agg_MCPAggregator -- "15. Returns CallToolResult" --> A_AugmentedLLM
 
     %% Notes
-    classDef note fill:#ffffcc,stroke:#999,stroke-width:1px
+    classDef note fill:#ffffcc,stroke:#999,stroke-width:1px,color:#000;
     class ConnectionDecision note
     
     %% Add note about ServerConnection

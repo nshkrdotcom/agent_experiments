@@ -1,6 +1,6 @@
 # Composable MCP Client with Workflows
 
-This project demonstrates a modular Python client for interacting with MCP (Model Context Protocol) servers. It uses a configuration-driven approach to define workflows that leverage an LLM (Google Gemini via `google-generativeai`) and various MCP tools.
+This project demonstrates a modular Python client for interacting with MCP (Model Context Protocol) servers. It uses a configuration-driven approach to define workflows that leverage an LLM (Google Gemini via `google-genai`) and various MCP tools.
 
 ## Features
 
@@ -53,7 +53,7 @@ This project demonstrates a modular Python client for interacting with MCP (Mode
 
 3.  **Install Dependencies:**
     ```bash
-    pip install python-dotenv mcp-protocols google-generativeai
+    pip install python-dotenv mcp-protocols google-generativeai google-genai
     ```
 
 4.  **Configure API Key:**

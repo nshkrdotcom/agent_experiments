@@ -18,8 +18,8 @@ NORMAL_CONSOLE_FORMAT = '%(asctime)s - %(levelname)-8s - %(message)s'
 USER_INTERACTION_CONSOLE_FORMAT = '%(message)s'
 
 _is_initialized = False
-_global_logging_enabled = True 
-_root_logger = logging.getLogger() 
+_global_logging_enabled = True
+_root_logger = logging.getLogger()
 
 # Define specific loggers for different parts of the app
 CONFIG_LOGGER = logging.getLogger("app.config")
@@ -31,9 +31,9 @@ CLI_LOGGER = logging.getLogger("app.cli")
 GOOGLE_API_LOGGER_NAME = "google.generativeai"
 HTTPX_LOGGER_NAME = "httpx" # google-generativeai uses httpx
 
-def setup_logging(level: int = LOG_LEVEL_NORMAL, 
+def setup_logging(level: int = LOG_LEVEL_NORMAL,
                   console_level_override: Optional[int] = None,
-                  log_file: Optional[str] = 'app_client.log', 
+                  log_file: Optional[str] = 'app_client.log',
                   enable_global: bool = True):
     """
     Initializes or reconfigures the logging system.
@@ -52,11 +52,11 @@ def setup_logging(level: int = LOG_LEVEL_NORMAL,
     if not _global_logging_enabled:
         _root_logger.setLevel(LOG_LEVEL_QUIET + 1) # Set very high to silence everything
         # Remove existing handlers
-        for handler in _root_logger.handlers[:]: 
+        for handler in _root_logger.handlers[:]:
             _root_logger.removeHandler(handler)
             if hasattr(handler, 'close'): # Ensure handler is closed
                 handler.close()
-        _root_logger.addHandler(logging.NullHandler()) 
+        _root_logger.addHandler(logging.NullHandler())
         _is_initialized = True
         # Also silence noisy third-party loggers when globally disabled
         logging.getLogger(GOOGLE_API_LOGGER_NAME).setLevel(LOG_LEVEL_QUIET + 1)
@@ -79,25 +79,25 @@ def setup_logging(level: int = LOG_LEVEL_NORMAL,
         min_effective_level = min(min_effective_level, console_level_override)
     if log_file: # File handler always logs at VERBOSE (DEBUG) from our app
         min_effective_level = min(min_effective_level, LOG_LEVEL_VERBOSE)
-    
+
     _root_logger.setLevel(min_effective_level)
 
 
     # --- Console Handler ---
     actual_console_level = console_level_override if console_level_override is not None else level
-    
+
     if actual_console_level < LOG_LEVEL_QUIET: # Only add console handler if not completely quieted
         console_formatter = logging.Formatter(DEFAULT_FORMAT) # Default for verbose
         if actual_console_level == LOG_LEVEL_USER_INTERACTION:
             console_formatter = logging.Formatter(USER_INTERACTION_CONSOLE_FORMAT)
-        elif actual_console_level == LOG_LEVEL_NORMAL : # Normal 
+        elif actual_console_level == LOG_LEVEL_NORMAL : # Normal
             console_formatter = logging.Formatter(NORMAL_CONSOLE_FORMAT)
-        
+
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(actual_console_level) 
+        console_handler.setLevel(actual_console_level)
         _root_logger.addHandler(console_handler)
-    
+
     # --- File Handler ---
     if log_file:
         file_formatter = logging.Formatter(DEFAULT_FORMAT) # File always gets detailed format
@@ -106,7 +106,7 @@ def setup_logging(level: int = LOG_LEVEL_NORMAL,
             file_handler.setFormatter(file_formatter)
             # File handler for app logs everything from VERBOSE (DEBUG) up,
             # respecting the root logger's filter.
-            file_handler.setLevel(LOG_LEVEL_VERBOSE) 
+            file_handler.setLevel(LOG_LEVEL_VERBOSE)
             _root_logger.addHandler(file_handler)
         except Exception as e:
             # Fallback if file handler can't be created (e.g., permissions)
@@ -124,26 +124,26 @@ def setup_logging(level: int = LOG_LEVEL_NORMAL,
     third_party_log_level_setting = logging.WARNING # Default for third-party
     if actual_console_level <= LOG_LEVEL_VERBOSE: # If our console is verbose
         third_party_log_level_setting = LOG_LEVEL_NORMAL # Let them show INFO too
-    
+
     logging.getLogger(GOOGLE_API_LOGGER_NAME).setLevel(third_party_log_level_setting)
     logging.getLogger(HTTPX_LOGGER_NAME).setLevel(third_party_log_level_setting)
-    
+
     _is_initialized = True
-    
+
     # Log initialization status (respects console handler's level)
     init_msg = f"Logging initialized. Effective console level: {logging.getLevelName(actual_console_level)}."
     if log_file:
         init_msg += f" File logging ({logging.getLevelName(LOG_LEVEL_VERBOSE)}+) to: {log_file}"
     else:
         init_msg += " File logging disabled."
-    
+
     # This message itself will be filtered by the console handler's level.
     # If actual_console_level is USER_INTERACTION, this INFO message won't show on console.
     CLI_LOGGER.info(init_msg)
     # If console is very quiet, a direct print might be needed for this one-time setup message.
     if actual_console_level >= LOG_LEVEL_QUIET and _root_logger.handlers and not any(isinstance(h, logging.StreamHandler) and h.stream == sys.stdout for h in _root_logger.handlers):
          pass # No console handler, or it's super quiet
-    elif actual_console_level > LOG_LEVEL_INFO: # If console won't show INFO
+    elif actual_console_level > LOG_LEVEL_NORMAL: # If console won't show INFO  <- FIXED HERE
          if any(isinstance(h, logging.StreamHandler) and h.stream == sys.stdout for h in _root_logger.handlers):
              # A direct print can be used if the CLI_LOGGER.info won't make it to console
              # but this can be tricky. Better to rely on the levels.
@@ -161,13 +161,13 @@ def get_logger(name: str) -> logging.Logger:
         # Fallback: Basic setup if not explicitly called.
         # This usually means cli.py didn't call setup_logging first.
         print("Warning: app_logger.setup_logging() not called explicitly. Using default setup.", file=sys.stderr)
-        setup_logging() 
-    
+        setup_logging()
+
     return logging.getLogger(name)
 
 def disable_logging():
     """Globally disables all logging output from the application's loggers."""
-    setup_logging(enable_global=False) 
+    setup_logging(enable_global=False)
 
 def enable_logging(level: int = LOG_LEVEL_NORMAL, console_level: Optional[int] = None):
     """Globally enables logging with the specified levels."""
@@ -206,7 +206,7 @@ def engine_log_warning(msg, *args, **kwargs):
     if _global_logging_enabled: ENGINE_LOGGER.warning(msg, *args, **kwargs)
 def engine_log_error(msg, *args, **kwargs):
     if _global_logging_enabled: ENGINE_LOGGER.error(msg, *args, **kwargs)
-def engine_log_critical(msg, *args, **kwargs): 
+def engine_log_critical(msg, *args, **kwargs):
     if _global_logging_enabled: ENGINE_LOGGER.critical(msg, *args, **kwargs)
 
 # For CLI / Main App
